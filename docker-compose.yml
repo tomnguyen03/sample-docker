@@ -1,0 +1,75 @@
+version: "3.3"
+
+services:
+  mysqldb:
+    image: mysql:5.7
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      - MYSQL_ROOT_PASSWORD=$MYSQLDB_ROOT_PASSWORD
+      - MYSQL_DATABASE=$MYSQLDB_DATABASE
+    ports:
+      - $MYSQLDB_LOCAL_PORT:$MYSQLDB_DOCKER_PORT
+    volumes:
+      - db:/var/lib/mysql
+    networks:
+      - backend
+
+  backend:
+    container_name: backend
+    depends_on:
+      - mysqldb
+    build: ./la_maison-api
+    restart: unless-stopped
+    env_file: ./.env
+    ports:
+      - $NODE_LOCAL_PORT:$NODE_DOCKER_PORT
+    environment:
+      - DB_HOST=mysqldb
+      - DB_USER=$MYSQLDB_USER
+      - DB_PASSWORD=$MYSQLDB_ROOT_PASSWORD
+      - DB_NAME=$MYSQLDB_DATABASE
+      - DB_PORT=$MYSQLDB_DOCKER_PORT
+    volumes:
+      - /app/node_modules
+      - ./la_maison-api:/app
+    networks:
+      - backend
+      - frontend
+
+  frontend:
+    container_name: frontend
+    depends_on:
+      - backend
+    build:
+      context: ./la_maison-ui
+    ports:
+      - $REACT_LOCAL_PORT:$REACT_DOCKER_PORT
+    volumes:
+      - /app/node_modules
+      - ./la_maison-ui:/app
+    networks:
+      - frontend
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    env_file: ./.env
+    restart: always
+    ports:
+      - $PHPMYADMIN_LOCAL_PORT:$PHPMYADMIN_DOCKER_PORT
+    environment:
+      MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
+      PMA_HOST: mysqldb
+      PMA_USERNAME: $MYSQLDB_USER
+      PMA_PASSWORD: $MYSQL_ROOT_PASSWORD
+    depends_on:
+      - mysqldb
+    networks:
+      - backend
+
+volumes:
+  db:
+
+networks:
+  backend:
+  frontend:
